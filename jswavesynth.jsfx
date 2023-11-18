@@ -1,0 +1,127 @@
+desc: JSWavesynth
+tags: synth, instrument
+
+slider1:/tilr_JSWavesynth:Sine.wav:Wave
+slider2:vol=-12<-90, 0, .01>Volume
+
+import ws.wavetable.jsfx-inc
+import ws.array.jsfx-inc
+
+@init
+wave = 0;
+wavebuf = 100000;
+wavechn = 0;
+wavelen = 0;
+wavesrate = 0;
+maxpoly = 4;
+poly.array_init(0, maxpoly, 4); // [note, velocity, freq, phase]
+
+function db2gain(db) (10^(db / 20););
+function note2freq(n) ( 440 * pow(2, (n - 69) / 12); );
+
+function normalize_wave(buf, len) (
+  _min = 1;
+  _max = -1;
+  i = 0; loop(len,
+    _min = min(_min, buf[i]);
+    _max = max(_max, buf[i]);
+    i += 1;
+  );
+  i = 0; loop(len,
+    buf[i] = 2 * ((buf[i] - _min) / (_max - _min)) -1;
+    i += 1;
+  );
+);
+
+function stereo_to_mono_wave(buf, len) (
+  i = 0; loop((len / 2) | 0,
+    buf[i] = (buf[i*2] + buf[i*2+1]) * 0.5;
+    i += 1;
+  );
+);
+
+@block
+
+while (midirecv(offset, msg1, note, vel)) (
+  event = msg1 & 0xF0;
+  channel = msg1 & 0x0F;
+
+  // Note on
+  event == 0x90 && vel ? (
+  
+    // remove note if it is already playing
+    ptr = poly.array_find(note);
+    ptr >= 0 ? poly.array_remove(ptr);
+    
+    // if array is full remove first element
+    poly.size == maxpoly ? (
+      poly.array_remove(poly.array_first());
+    );
+    
+    ptr = poly.array_add();
+    ptr[0] = note;
+    ptr[1] = vel / 127;
+    ptr[2] = note2freq(note) / srate;
+    ptr[3] = 0;
+    //note_on = 1;
+    //note_vel = vel / 127;
+    //note_counter = 0;
+    //note_freq = note2freq(note);
+    //envelope.zen_trigger(1);
+    //pitch_envelope.zen_trigger(1);
+    //noise_envelope.zen_trigger(1);
+  );
+  
+  // Note off
+  event == 0x80 || (event == 0x90 && !vel) ? (
+    ptr = poly.array_find(note);
+    ptr >= 0 ? poly.array_remove(ptr);
+  );
+  
+  // All notes off
+  event == 0xB0 && note == 123 ? (
+    poly.array_clear();
+  );
+
+  midisend(offset, msg1, note, vel);
+);
+
+@slider
+
+gain = db2gain(vol);
+wave = 0;
+filehandle=file_open(slider1);
+filehandle > 0 ? (
+  file_riff(filehandle, wavechn, wavesrate);
+  wavechn ? (
+    wavelen = file_avail(filehandle);
+    file_mem(filehandle,wavebuf,wavelen);
+  );
+  file_close(filehandle);
+  wavechn == 2 ? (
+    stereo_to_mono_wave(wavebuf, wavelen);
+    wavelen = (wavelen / 2) | 0;
+  );
+  normalize_wave(wavebuf, wavelen);
+  wave = 1;
+  osc.wave_init(wavebuf, wavelen);
+  osc.wave_setf(50);
+);
+
+@sample
+
+//wave == 1 ? (
+  out = 0;
+  ptr = poly.array_first();
+  while(ptr >= 0) (
+    osc.wave_sync(ptr[3]);
+    osc.wave_setdt(ptr[2]);
+
+    out += osc.wave_spline3();
+    ptr[3] = osc.t; // update osc phase
+    ptr = poly.array_next(ptr);
+  );
+  spl0 += out * gain;
+  spl1 += out * gain;
+  //spl0 = spl1 = osc.wave_spline3() * gain;
+//);
