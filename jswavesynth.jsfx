@@ -99,7 +99,7 @@ while (midirecv(offset, msg1, note, vel)) (
     ptr[2] = note2freq(note) / srate;
     ptr[3] = 0; // osc start phase
     i = 5; loop(8,
-      ptr[i] = rand(2) - 1; // random unison start phase
+      ptr[i] = 0; // random unison start phase
       i += 1;
     );
   );
