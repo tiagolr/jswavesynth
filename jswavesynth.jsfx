@@ -4,7 +4,7 @@ tags: synth, instrument
 slider1:/tilr_JSWavesynth:Sine.wav:Wave
 slider2:vol=-12<-90, 0, .01>Volume
 slider3:maxpoly=8<0, 32, 1>Polyphony
-slider4:uni_voices=2<1, 16, 1>Unison voices
+slider4:uni_voices=2<1, 8, 1>Unison voices
 slider5:uni_detune=0<0, 1, 0.01>Unison detune
 slider6:uni_pan=0<0, 1, 0.01>Unison panning
 
@@ -18,7 +18,7 @@ wavebuf = 100000;
 wavechn = 0;
 wavelen = 0;
 wavesrate = 0;
-poly.array_init(0, 128, 4+16); // [note, velocity, freq, phase, phase_unison1...phase_unison16]
+poly.array_init(0, 128, 5+8); // [note, velocity, freq, phase, envelope, phase_unison1...phase_unison16]
 
 function db2gain(db) (10^(db / 20););
 function note2freq(n) ( 440 * pow(2, (n - 69) / 12); );
@@ -70,7 +70,10 @@ function on_file_change () (
 
 gain = db2gain(vol);
 lfile != slider1 ? on_file_change();
-lmaxpoly != maxpoly ? poly.array_clear();
+lmaxpoly != maxpoly ? (
+  lmaxpoly = maxpoly;
+  poly.array_clear();
+);
 
 @block
 
@@ -95,7 +98,7 @@ while (midirecv(offset, msg1, note, vel)) (
     ptr[1] = vel / 127;
     ptr[2] = note2freq(note) / srate;
     ptr[3] = 0; // osc start phase
-    i = 4; loop(16,
+    i = 5; loop(8,
       ptr[i] = rand(2) - 1; // random unison start phase
       i += 1;
     );
@@ -127,13 +130,13 @@ lfile >= 0 ? (
     i = 0; loop(uni_voices | 0,
       pos = i == 0 && univoices % 2 == 1 ? 0 : i % 2 ? -1 : 1; // center, left or right position
       detune_amt = uni_detune * 3 / srate; // 3 hz max detune
-      detune = uni_voices % 2
+      detune = uni_voices % 2 == 0
         ? pos * detune_amt * (i + 1 - i % 2) / uni_voices
         : pos * detune_amt * (i + i % 2) / uni_voices;
       osc.wave_setdt(ptr[2] + detune);
       osc.wave_sync(ptr[i + 3]);
       wave = osc.wave_spline3();
-      pan = univoices % 2
+      pan = uni_voices % 2 == 0
         ? pos * uni_pan * (i + 1 - i % 2) / uni_voices
         : pos * uni_pan * (i + i % 2) / uni_voices;
       outl += wave * (1 + pan);
