@@ -127,14 +127,17 @@ lfile >= 0 ? (
     i = 0; loop(uni_voices | 0,
       pos = i == 0 && univoices % 2 == 1 ? 0 : i % 2 ? -1 : 1; // center, left or right position
       detune_amt = uni_detune * 3 / srate; // 3 hz max detune
-      detune = univoices % 2
+      detune = uni_voices % 2
         ? pos * detune_amt * (i + 1 - i % 2) / uni_voices
         : pos * detune_amt * (i + i % 2) / uni_voices;
       osc.wave_setdt(ptr[2] + detune);
       osc.wave_sync(ptr[i + 3]);
       wave = osc.wave_spline3();
-      outl += wave;
-      outr += wave;
+      pan = univoices % 2
+        ? pos * uni_pan * (i + 1 - i % 2) / uni_voices
+        : pos * uni_pan * (i + i % 2) / uni_voices;
+      outl += wave * (1 + pan);
+      outr += wave * (1 - pan);
       ptr[i + 3] = osc.t; // update osc phase
       i += 1;
     );
