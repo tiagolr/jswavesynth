@@ -20,14 +20,10 @@ wavechn = 0;
 wavelen = 0;
 wavesrate = 0;
 osc_free = 1;
-poly.array_init(0, 128, 4+8); // [note, velocity, freq, phase, phase_unison1...phase_unison8, envelope]
-remove_ptrs.array_init(2000, 128, 1);
-adsr = 2000;
-
-adsr_seta(1, adsr);
-adsr_setd(1, adsr);
-adsr_sets(exp(log(10)/20 * 0), adsr);
-adsr_setr(1, adsr);
+// [0note, 1velocity, 2freq, 3phase, 4..12 phase_unison]
+poly.array_init(0, 128, 4+8);
+envelope = 2000; // 128 * 7 buffer
+remove_ptrs.array_init(5000, 128, 1);
 
 function db2gain(db) (10^(db / 20););
 function note2freq(n) ( 440 * pow(2, (n - 69) / 12); );
@@ -112,14 +108,21 @@ while (midirecv(offset, msg1, note, vel)) (
       ptr[i] = osc_free ? rand(2) - 1 : 0; // random unison start phase
       i += 1;
     );
-    adsr_a(1, adsr);
+    
+    env = envelope + note * 7;
+    adsr_seta(1, env);
+    adsr_setd(1, env);
+    adsr_sets(exp(log(10)/20 * 0), env);
+    adsr_setr(1, env);
+    adsr_a(1, env);
   );
 
   // Note off
   event == 0x80 || (event == 0x90 && !vel) ? (
     //ptr = poly.array_find(note);
     //ptr >= 0 ? poly.array_remove(ptr);
-    adsr_r(adsr);
+    ptr = poly.array_find(note);
+    ptr >= 0 ? adsr_r(envelope + note * 7);
   );
 
   // All notes off
@@ -140,7 +143,6 @@ lfile >= 0 ? (
   ptr = maxpoly == 0
     ? poly.array_last() /* mono voicing */
     : poly.array_first();
-  env_state = adsr_process(adsr);
   while(ptr >= 0) (
     loop(i = 0; uni_voices | 0,
       imod2 = i & 1;
@@ -160,8 +162,9 @@ lfile >= 0 ? (
       i += 1;
     );
 
-    outl *= adsr[0];
-    outr *= adsr[0];
+    env_state = adsr_process(envelope + ptr[0] * 7);
+    outl *= (envelope + ptr[0] * 7)[];
+    outr *= (envelope + ptr[0] * 7)[];
     
     // mark note for deletion
     env_state == 0 ? (
@@ -178,6 +181,7 @@ lfile >= 0 ? (
     p >= 0 ? poly.array_remove(p);
     ptr = remove_ptrs.array_next();
   );
+  remove_ptrs.array_clear();
   spl0 += outl * gain;
   spl1 += outr * gain;
   //spl0 = spl1 = osc.wave_spline3() * gain;
