@@ -24,6 +24,7 @@ osc_free = 1;
 poly.array_init(0, 128, 4+8);
 envelope = 2000; // 128 * 7 buffer
 remove_ptrs.array_init(5000, 128, 1);
+last_phase = 10000; // buffer for copy pasting note osc phases
 
 function db2gain(db) (10^(db / 20););
 function note2freq(n) ( 440 * pow(2, (n - 69) / 12); );
@@ -91,21 +92,30 @@ while (midirecv(offset, msg1, note, vel)) (
   event == 0x90 && vel ? (
 
     // remove note if it is already playing
+    note_repeat = 0;
     ptr = poly.array_find(note);
-    ptr >= 0 ? poly.array_remove(ptr);
+    ptr >= 0 ? (
+      note_repeat = 1;
+      last_phase[0] = ptr[3];
+      loop(i = 1; 8,
+        last_phase[i] = ptr[3+i];
+        i += 1;
+      );
+      poly.array_remove(ptr);
+    );
 
     // if polyphony is full and not mono remove first element
     poly.size == maxpoly && maxpoly != 0 ? (
       poly.array_remove(poly.array_first());
     );
-
+    
     ptr = poly.array_add();
     ptr[0] = note;
     ptr[1] = vel / 127;
     ptr[2] = note2freq(note) / srate;
-    ptr[3] = osc_free ? rand(2) - 1 : 0; // osc start phase
+    ptr[3] = note_repeat ? last_phase[0] : osc_free ? rand(2) - 1 : 0; // osc start phase
     loop(i = 4; 8,
-      ptr[i] = osc_free ? rand(2) - 1 : 0; // random unison start phase
+      ptr[i] = note_repeat ? last_phase[i-3] : osc_free ? rand(2) - 1 : 0; // random unison start phase
       i += 1;
     );
     
@@ -114,7 +124,7 @@ while (midirecv(offset, msg1, note, vel)) (
     adsr_setd(1, env);
     adsr_sets(exp(log(10)/20 * 0), env);
     adsr_setr(1, env);
-    adsr_a(1, env);
+    adsr_a(vel / 128, env);
   );
 
   // Note off
@@ -144,6 +154,7 @@ lfile >= 0 ? (
     ? poly.array_last() /* mono voicing */
     : poly.array_first();
   while(ptr >= 0) (
+    env_state = adsr_process(envelope + ptr[0] * 7);
     loop(i = 0; uni_voices | 0,
       imod2 = i & 1;
       pos = i == 0 && odd_voices ? 0 : imod2 ? -1 : 1; // center, left or right position
@@ -156,31 +167,32 @@ lfile >= 0 ? (
       pan = !odd_voices
         ? pos * uni_pan * (i + 1 - imod2) / uni_voices
         : pos * uni_pan * (i + imod2) / uni_voices;
-      outl += wave * (1 + pan);
-      outr += wave * (1 - pan);
+      env = (envelope + ptr[0] * 7)[];
+      outl += wave * (1 + pan) * env;
+      outr += wave * (1 - pan) * env;
       ptr[i + 3] = osc.t; // update osc phase
       i += 1;
     );
-
-    env_state = adsr_process(envelope + ptr[0] * 7);
-    outl *= (envelope + ptr[0] * 7)[];
-    outr *= (envelope + ptr[0] * 7)[];
     
     // mark note for deletion
     env_state == 0 ? (
       p = remove_ptrs.array_add();
       p[0] = ptr[0];
+      REMOVEDT += 1;
+      REMOVE_V = ptr[0];
     );
 
     ptr = poly.array_next(ptr);
   );
+  
   // remove notes that finished adsr
   ptr = remove_ptrs.array_first();
   while(ptr >= 0) (
     p = poly.array_find(ptr[0]);
     p >= 0 ? poly.array_remove(p);
-    ptr = remove_ptrs.array_next();
+    ptr = remove_ptrs.array_next(ptr);
   );
+  
   remove_ptrs.array_clear();
   spl0 += outl * gain;
   spl1 += outr * gain;
