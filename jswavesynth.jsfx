@@ -20,11 +20,11 @@ wavechn = 0;
 wavelen = 0;
 wavesrate = 0;
 osc_free = 1;
-// [0note, 1velocity, 2freq, 3phase, 4..12 phase_unison]
-poly.array_init(0, 128, 4+8);
+
+poly.array_init(0, 128, 4+8); // [0note, 1velocity, 2freq, 3phase, 4..12 phase_unison]
 envelope = 2000; // 128 * 7 buffer
 remove_ptrs.array_init(5000, 128, 1);
-last_phase = 10000; // buffer for copy pasting note osc phases
+last_phase = 10000; // 9 buffer for copy pasting note osc phases
 
 function db2gain(db) (10^(db / 20););
 function note2freq(n) ( 440 * pow(2, (n - 69) / 12); );
@@ -178,8 +178,6 @@ lfile >= 0 ? (
     env_state == 0 ? (
       p = remove_ptrs.array_add();
       p[0] = ptr[0];
-      REMOVEDT += 1;
-      REMOVE_V = ptr[0];
     );
 
     ptr = poly.array_next(ptr);
