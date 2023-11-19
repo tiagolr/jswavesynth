@@ -4,8 +4,8 @@ tags: synth, instrument
 slider1:/tilr_JSWavesynth:Sine.wav:Wave
 slider2:vol=-12<-90, 0, .01>Volume
 slider3:maxpoly=8<0, 32, 1>Polyphony
-slider4:uni_voices=2<1, 8, 1>Unison voices
-slider5:uni_detune=0<0, 1, 0.01>Unison detune
+slider4:uni_voices=1<1, 8, 1>Unison voices
+slider5:uni_detune=0.15<0, 1, 0.01>Unison detune
 slider6:uni_pan=0<0, 1, 0.01>Unison panning
 
 import ws.wavetable.jsfx-inc
@@ -152,5 +152,4 @@ lfile >= 0 ? (
   );
   spl0 += outl * gain;
   spl1 += outr * gain;
-  //spl0 = spl1 = osc.wave_spline3() * gain;
 );
