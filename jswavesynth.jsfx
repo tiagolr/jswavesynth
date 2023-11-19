@@ -19,7 +19,7 @@ wavechn = 0;
 wavelen = 0;
 wavesrate = 0;
 osc_free = 1;
-poly.array_init(0, 128, 5+8); // [note, velocity, freq, phase, envelope, phase_unison1...phase_unison16]
+poly.array_init(0, 128, 4+8); // [note, velocity, freq, phase, phase_unison1...phase_unison8, envelope]
 
 function db2gain(db) (10^(db / 20););
 function note2freq(n) ( 440 * pow(2, (n - 69) / 12); );
@@ -27,12 +27,12 @@ function note2freq(n) ( 440 * pow(2, (n - 69) / 12); );
 function normalize_wave(buf, len) (
   _min = 1;
   _max = -1;
-  i = 0; loop(len,
+  loop(i = 0; len,
     _min = min(_min, buf[i]);
     _max = max(_max, buf[i]);
     i += 1;
   );
-  i = 0; loop(len,
+  loop(i = 0; len,
     buf[i] = 2 * ((buf[i] - _min) / (_max - _min)) -1;
     i += 1;
   );
@@ -100,7 +100,7 @@ while (midirecv(offset, msg1, note, vel)) (
     ptr[1] = vel / 127;
     ptr[2] = note2freq(note) / srate;
     ptr[3] = osc_free ? rand(2) - 1 : 0; // osc start phase
-    i = 5; loop(8,
+    loop(i = 4; 8,
       ptr[i] = osc_free ? rand(2) - 1 : 0; // random unison start phase
       i += 1;
     );
@@ -125,21 +125,21 @@ while (midirecv(offset, msg1, note, vel)) (
 lfile >= 0 ? (
   outl = 0;
   outr = 0;
-  voices_odd = uni_voices & 1;
+  odd_voices = uni_voices & 1;
   ptr = maxpoly == 0
     ? poly.array_last() /* mono voicing */
     : poly.array_first();
   while(ptr >= 0) (
-    i = 0; loop(uni_voices | 0,
+    loop(i = 0; uni_voices | 0,
       imod2 = i & 1;
-      pos = i == 0 && voices_odd ? 0 : imod2 ? -1 : 1; // center, left or right position
-      detune = !voices_odd
+      pos = i == 0 && odd_voices ? 0 : imod2 ? -1 : 1; // center, left or right position
+      detune = !odd_voices
         ? pos * detune_amt * (i + 1 - imod2) / uni_voices
         : pos * detune_amt * (i + imod2) / uni_voices;
       osc.wave_setdt(ptr[2] + detune);
       osc.wave_sync(ptr[i + 3]);
       wave = osc.wave_spline3();
-      pan = !voices_odd
+      pan = !odd_voices
         ? pos * uni_pan * (i + 1 - imod2) / uni_voices
         : pos * uni_pan * (i + imod2) / uni_voices;
       outl += wave * (1 + pan);
