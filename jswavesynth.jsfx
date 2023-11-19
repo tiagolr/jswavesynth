@@ -10,6 +10,7 @@ slider6:uni_pan=0<0, 1, 0.01>Unison panning
 
 import ws.wavetable.jsfx-inc
 import ws.array.jsfx-inc
+import ws.adsr.jsfx-inc
 
 @init
 lfile = -1;
@@ -20,6 +21,13 @@ wavelen = 0;
 wavesrate = 0;
 osc_free = 1;
 poly.array_init(0, 128, 4+8); // [note, velocity, freq, phase, phase_unison1...phase_unison8, envelope]
+remove_ptrs.array_init(2000, 128, 1);
+adsr = 2000;
+
+adsr_seta(1, adsr);
+adsr_setd(1, adsr);
+adsr_sets(exp(log(10)/20 * 0), adsr);
+adsr_setr(1, adsr);
 
 function db2gain(db) (10^(db / 20););
 function note2freq(n) ( 440 * pow(2, (n - 69) / 12); );
@@ -104,12 +112,14 @@ while (midirecv(offset, msg1, note, vel)) (
       ptr[i] = osc_free ? rand(2) - 1 : 0; // random unison start phase
       i += 1;
     );
+    adsr_a(1, adsr);
   );
 
   // Note off
   event == 0x80 || (event == 0x90 && !vel) ? (
-    ptr = poly.array_find(note);
-    ptr >= 0 ? poly.array_remove(ptr);
+    //ptr = poly.array_find(note);
+    //ptr >= 0 ? poly.array_remove(ptr);
+    adsr_r(adsr);
   );
 
   // All notes off
@@ -126,9 +136,11 @@ lfile >= 0 ? (
   outl = 0;
   outr = 0;
   odd_voices = uni_voices & 1;
+  remove_ptrs.array_clear();
   ptr = maxpoly == 0
     ? poly.array_last() /* mono voicing */
     : poly.array_first();
+  env_state = adsr_process(adsr);
   while(ptr >= 0) (
     loop(i = 0; uni_voices | 0,
       imod2 = i & 1;
@@ -148,7 +160,23 @@ lfile >= 0 ? (
       i += 1;
     );
 
+    outl *= adsr[0];
+    outr *= adsr[0];
+    
+    // mark note for deletion
+    env_state == 0 ? (
+      p = remove_ptrs.array_add();
+      p[0] = ptr[0];
+    );
+
     ptr = poly.array_next(ptr);
+  );
+  // remove notes that finished adsr
+  ptr = remove_ptrs.array_first();
+  while(ptr >= 0) (
+    p = poly.array_find(ptr[0]);
+    p >= 0 ? poly.array_remove(p);
+    ptr = remove_ptrs.array_next();
   );
   spl0 += outl * gain;
   spl1 += outr * gain;
