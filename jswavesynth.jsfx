@@ -3,11 +3,17 @@ tags: synth, instrument
 
 slider1:/tilr_JSWavesynth:Sine.wav:Wave
 slider2:vol=-12<-90, 0, .01>Volume
-slider3:maxpoly=8<0, 32, 1>Polyphony
+slider3:maxpoly=16<0, 32, 1>Polyphony
 slider4:uni_voices=1<1, 8, 1>Unison voices
 slider5:uni_detune=0.15<0, 1, 0.01>Unison detune
 slider6:uni_pan=0<0, 1, 0.01>Unison panning
 
+slider8:osc_att=1<1, 10000, 1:log>Attack
+slider9:osc_dec=1<1, 10000, 1:log>Decay
+slider10:osc_sus=0<-90, 0, .1:log>Sustain Db
+slider11:osc_rel=500<1, 10000, 1:log>Release
+
+import ws.oversample.jsfx-inc
 import ws.wavetable.jsfx-inc
 import ws.array.jsfx-inc
 import ws.adsr.jsfx-inc
@@ -120,17 +126,15 @@ while (midirecv(offset, msg1, note, vel)) (
     );
     
     env = envelope + note * 7;
-    adsr_seta(1, env);
-    adsr_setd(1, env);
-    adsr_sets(exp(log(10)/20 * 0), env);
-    adsr_setr(1, env);
+    adsr_seta(osc_att * 0.001, env);
+    adsr_setd(osc_dec * 0.001, env);
+    adsr_sets(exp(log(10)/20 * osc_sus), env);
+    adsr_setr(osc_rel * 0.001, env);
     adsr_a(vel / 128, env);
   );
 
   // Note off
   event == 0x80 || (event == 0x90 && !vel) ? (
-    //ptr = poly.array_find(note);
-    //ptr >= 0 ? poly.array_remove(ptr);
     ptr = poly.array_find(note);
     ptr >= 0 ? adsr_r(envelope + note * 7);
   );
@@ -153,9 +157,9 @@ lfile >= 0 ? (
   ptr = maxpoly == 0
     ? poly.array_last() /* mono voicing */
     : poly.array_first();
-  while(ptr >= 0) (
+  while(ptr >= 0) ( // for each note/voice
     env_state = adsr_process(envelope + ptr[0] * 7);
-    loop(i = 0; uni_voices | 0,
+    loop(i = 0; uni_voices | 0, // for each unison voice
       imod2 = i & 1;
       pos = i == 0 && odd_voices ? 0 : imod2 ? -1 : 1; // center, left or right position
       detune = !odd_voices
