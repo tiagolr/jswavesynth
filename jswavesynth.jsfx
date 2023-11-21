@@ -2,20 +2,20 @@ desc: JSWavesynth
 tags: synth, instrument
 
 slider1:/tilr_JSWavesynth:Sine.wav:Wave
-slider2:vol=-12<-90, 0, .01>Volume
-slider3:maxpoly=16<2, 32, 1>Polyphony
-slider4:uni_voices=1<1, 8, 1>Unison voices
-slider5:uni_detune=0.15<0, 1, 0.01>Unison detune
-slider6:uni_pan=0<0, 1, 0.01>Unison panning
+slider2:vol=-12<-90, 0, .01>-Volume
+slider3:maxpoly=16<2, 32, 1>-Polyphony
+slider4:uni_voices=1<1, 8, 1>-Unison voices
+slider5:uni_detune=0.15<0, 1, 0.01>-Unison detune
+slider6:uni_pan=0.5<0, 1, 0.01>-Unison panning
 
-slider8:osc_att=1<1, 10000, 1:log>Attack
-slider9:osc_dec=1<1, 10000, 1:log>Decay
-slider10:osc_sus=0<-90, 0, .1:log>Sustain Db
-slider11:osc_rel=500<1, 10000, 1:log>Release
+slider8:osc_att=1<1, 10000, 1:log>-Attack
+slider9:osc_dec=1<1, 10000, 1:log>-Decay
+slider10:osc_sus=0<-90, 0, .1:log>-Sustain Db
+slider11:osc_rel=500<1, 10000, 1:log>-Release
 
-slider13:flt_shape=0<0,2,1{Low Pass,Band Pass,High Pass}>Filter shape
-slider14:flt_freq=22000<20, 22000, 1:log>Filter frequency
-slider15:flt_q=0.70<0.01, 40, 0.01:log>Filter Q
+slider13:flt_shape=0<0,2,1{Low Pass,Band Pass,High Pass}>-Filter shape
+slider14:flt_freq=22000<20, 22000, 1:log>-Filter frequency
+slider15:flt_q=0.70<0.01, 40, 0.01:log>-Filter Q
 
 import ws.wavetable.jsfx-inc
 import ws.array.jsfx-inc
@@ -24,7 +24,7 @@ import ws.svf_filter.jsfx-inc
 import ws.gfxlib.jsfx-inc
 import ws.mouselib.jsfx-inc
 
-options:gfx_hz=60
+options:gfx_hz=60 no_meter
 
 @init
 lfile = -1;
@@ -245,16 +245,16 @@ gfx_drawstr("UNISON");
 
 draw_knob(160, 40, 4, "Voices", 1, 1, 8, 0, 0, sprintf(#, "%i", slider(4)));
 draw_knob(220, 40, 5, "Det", 0.15, 0, 1, 0, 0, sprintf(#, "%.2f", slider(5)));
-draw_knob(160, 110, 6, "Pan", 0, 0, 1, 0, 0, sprintf(#, "%.2f", slider(6)));
+draw_knob(160, 110, 6, "Pan", 0.5, 0, 1, 0, 0, sprintf(#, "%.2f", slider(6)));
 
 set_color(0x666666);
 gfx_x = 280; gfx_y = 20;
 gfx_drawstr("ADSR");
 
-draw_knob(280, 40, 8, "Att", 1, 1, 10000, 1, 0, sprintf(#, "%i", slider(8)));
-draw_knob(340, 40, 9, "Dec", 1, 1, 10000, 1, 0, sprintf(#, "%i", slider(9)));
-draw_knob(280, 110, 10, "Sus", 0, -90, 0, 0, 0, sprintf(#, "%.2f", slider(10)));
-draw_knob(340, 110, 11, "Rel", 1, 1, 10000, 1, 0, sprintf(#, "%i", slider(11)));
+draw_knob(280, 40, 8, "Att", 1, 1, 10000, 1, 0, sprintf(#, "%i ms", slider(8)));
+draw_knob(340, 40, 9, "Dec", 1, 1, 10000, 1, 0, sprintf(#, "%i ms", slider(9)));
+draw_knob(280, 110, 10, "Sus", 0, -90, 0, 0, 0, sprintf(#, "%.2f Db", slider(10)));
+draw_knob(340, 110, 11, "Rel", 1, 1, 10000, 1, 0, sprintf(#, "%i ms", slider(11)));
 
 set_color(0x666666);
 gfx_x = 400; gfx_y = 20;
