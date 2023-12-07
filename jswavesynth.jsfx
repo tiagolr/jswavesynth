@@ -22,7 +22,7 @@ slider18:flt_dec=500<1, 5000, 1:log>-Filter Decay
 slider19:_flt_sus=0<0, 100, 0.1>-Filter Sustain
 slider20:flt_rel=500<1, 5000, 1:log>-Filter Release
 
-slider22:pitch_amt=0<-24, 24, 1>-Pitch ASDR amt.
+slider22:_pitch_amt=0<-24, 24, 1>-Pitch ASDR amt.
 slider23:pitch_att=1<1, 5000, 1:log>-Pitch Attack
 slider24:pitch_dec=500<1, 5000, 1:log>-Pitch Decay
 slider25:_pitch_sus=0<0, 100, 0.1>-Pitch Sustain
@@ -163,6 +163,7 @@ function on_slider() (
   osc_sus = normalize_vol_slider(_osc_sus);
   uni_voices = _uni_voices | 0;
   odd_voices = uni_voices & 1;
+  pitch_amt = _pitch_amt * -1 | 0;
   flt_sus = _flt_sus / 100;
   pitch_sus = normalize_vol_slider(_pitch_sus);
   detune_amt = uni_detune / 100 * 3 / srate; // 3 hz max detune
