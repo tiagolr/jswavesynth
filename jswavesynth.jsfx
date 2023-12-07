@@ -85,10 +85,8 @@ function stereo_to_mono_wave(buf, len) (
 );
 
 function on_file_change () (
-  lfile = 0;
   filehandle=file_open(slider1);
   filehandle > 0 ? (
-    lfile = slider1;
     file_riff(filehandle, wavechn, wavesrate);
     wavechn ? (
       wavelen = file_avail(filehandle);
@@ -269,67 +267,65 @@ while (midirecv(offset, msg1, note, vel)) (
 
 @sample
 
-lfile >= 0 ? (
-  odd_voices = uni_voices & 1;
-  ptr = poly.array_first();
-  while(ptr >= 0) ( // for each note/voice
-    outl = 0;
-    outr = 0;
-    envbuf = envelope + ptr[0] * 7;
-    env_state = adsr_process(envbuf);
-    osc_pitch_det = 1;
-    pitch_amt ? (
-      pitchbuf = pitch_env + ptr[0] * 7;
-      adsr_process(pitchbuf);
-      osc_pitch_det = pow(2, pitchbuf[0] * pitch_amt / 100 / 12);
-    );
-
-    loop(i = 0; uni_voices | 0, // for each unison voice
-      imod2 = i & 1;
-      pos = i == 0 && odd_voices ? 0 : imod2 ? -1 : 1; // center, left or right position
-      detune = !odd_voices
-        ? pos * detune_amt * (i + 1 - imod2) / uni_voices
-        : pos * detune_amt * (i + imod2) / uni_voices;
-      osc.wave_setdt(ptr[2] * osc_pitch_det + detune);
-      osc.wave_sync(ptr[i + 3]);
-      wave = osc.wave_spline3();
-      pan = !odd_voices
-        ? pos * uni_pan * (i + 1 - imod2) / uni_voices
-        : pos * uni_pan * (i + imod2) / uni_voices;
-      outl += wave * (1 + pan) * envbuf[];
-      outr += wave * (1 - pan) * envbuf[];
-      ptr[i + 3] = osc.t; // update osc phase
-      i += 1;
-    );
-
-    // Apply filter
-    flt_shape != 0 ? (
-      filterbuf = filter_env + ptr[0] * 7; // envelope buffer
-      adsr_process(filterbuf);
-      filterbuf_l = filter_arr_l + ptr[0] * 11; // filter buffer left
-      filterbuf_r = filter_arr_r + ptr[0] * 11; // filter buffer right
-      multiplier = pow(20000/flt_freq, filterbuf[0] * flt_amt / 100);
-
-      filter_setf(filterbuf_l, flt_freq * multiplier, flt_q);
-      filter_copy_coefs(filterbuf_l, filterbuf_r);
-
-      flt_shape == 1 ? (
-        outl = filter_lp(filterbuf_l, outl);
-        outr = filter_lp(filterbuf_r, outr);
-      ) : flt_shape == 2 ? (
-        outl = filter_bp(filterbuf_l, outl);
-        outr = filter_bp(filterbuf_r, outr);
-      ) : (
-        outl = filter_hp(filterbuf_l, outl);
-        outr = filter_hp(filterbuf_r, outr);
-      );
-    );
-
-    spl0 += outl * gain;
-    spl1 += outr * gain;
-
-    ptr = poly.array_next(ptr);
+odd_voices = uni_voices & 1;
+ptr = poly.array_first();
+while(ptr >= 0) ( // for each note/voice
+  outl = 0;
+  outr = 0;
+  envbuf = envelope + ptr[0] * 7;
+  env_state = adsr_process(envbuf);
+  osc_pitch_det = 1;
+  pitch_amt ? (
+    pitchbuf = pitch_env + ptr[0] * 7;
+    adsr_process(pitchbuf);
+    osc_pitch_det = pow(2, pitchbuf[0] * pitch_amt / 100 / 12);
   );
+
+  loop(i = 0; uni_voices | 0, // for each unison voice
+    imod2 = i & 1;
+    pos = i == 0 && odd_voices ? 0 : imod2 ? -1 : 1; // center, left or right position
+    detune = !odd_voices
+      ? pos * detune_amt * (i + 1 - imod2) / uni_voices
+      : pos * detune_amt * (i + imod2) / uni_voices;
+    osc.wave_setdt(ptr[2] * osc_pitch_det + detune);
+    osc.wave_sync(ptr[i + 3]);
+    wave = osc.wave_spline3();
+    pan = !odd_voices
+      ? pos * uni_pan * (i + 1 - imod2) / uni_voices
+      : pos * uni_pan * (i + imod2) / uni_voices;
+    outl += wave * (1 + pan) * envbuf[];
+    outr += wave * (1 - pan) * envbuf[];
+    ptr[i + 3] = osc.t; // update osc phase
+    i += 1;
+  );
+
+  // Apply filter
+  flt_shape != 0 ? (
+    filterbuf = filter_env + ptr[0] * 7; // envelope buffer
+    adsr_process(filterbuf);
+    filterbuf_l = filter_arr_l + ptr[0] * 11; // filter buffer left
+    filterbuf_r = filter_arr_r + ptr[0] * 11; // filter buffer right
+    multiplier = pow(20000/flt_freq, filterbuf[0] * flt_amt / 100);
+
+    filter_setf(filterbuf_l, flt_freq * multiplier, flt_q);
+    filter_copy_coefs(filterbuf_l, filterbuf_r);
+
+  flt_shape == 1 ? (
+      outl = filter_lp(filterbuf_l, outl);
+      outr = filter_lp(filterbuf_r, outr);
+    ) : flt_shape == 2 ? (
+      outl = filter_bp(filterbuf_l, outl);
+      outr = filter_bp(filterbuf_r, outr);
+    ) : (
+      outl = filter_hp(filterbuf_l, outl);
+      outr = filter_hp(filterbuf_r, outr);
+    );
+  );
+
+  spl0 += outl * gain;
+  spl1 += outr * gain;
+
+  ptr = poly.array_next(ptr);
 );
 
 @gfx 520 200

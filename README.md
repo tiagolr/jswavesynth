@@ -8,7 +8,6 @@ Features:
 * Single cycle waveforms read from wav files
 * 16 polyphonic voices with independent adsr
 * 8 unison voices with detune and panning controls
-* Adsr envelope controls
-* One global filter (LP, BP or HP)
+* ADSR for amplitude pitch and filter
 
 Available on ReaPack
