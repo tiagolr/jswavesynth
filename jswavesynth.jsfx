@@ -32,7 +32,7 @@ slider26:pitch_rel=500<1, 5000, 1:log>-Pitch Release
 import ws.wavetable.jsfx-inc
 import ws.array.jsfx-inc
 import ws.adsr.jsfx-inc
-import ws.svf_filter.jsfx-inc
+import ws.zdf_filter.jsfx-inc
 import ws.gfxlib.jsfx-inc
 import ws.mouselib.jsfx-inc
 
@@ -105,7 +105,7 @@ function on_file_change () (
     osc.wave_setf(50);
   );
 );
-/*
+
 // copy filter coeficients from buffer1 to buffer2
 function filter_copy_coefs(buf1, buf2) (
   buf2[2] = buf1[2];
@@ -159,25 +159,20 @@ function filter_hp(buf, sample) local(hp) (
   buf[1] = filter.s2;
   hp;
 );
-*/
+
 function on_slider() (
   gain = db2gain(normalize_vol_slider(vol));
   lfile != slider1 ? on_file_change();
   uni_pan = _uni_pan / 100;
   osc_sus = normalize_vol_slider(_osc_sus);
-  flt_sus = normalize_vol_slider(_flt_sus);
+  flt_sus = _flt_sus / 100;
   pitch_sus = normalize_vol_slider(_pitch_sus);
   lmaxpoly != maxpoly ? (
     lmaxpoly = maxpoly;
     poly.array_clear();
   );
   detune_amt = uni_detune / 100 * 3 / srate; // 3 hz max detune
-  flt_shape == 1 ? filter.svf_lp(flt_freq, flt_q, 1)
-    : flt_shape == 2 ? filter.svf_bp2(flt_freq, flt_q)
-    : flt_shape == 3 ? filter.svf_hp(flt_freq, flt_q, 1);
 );
-
-filter.svf_set_sample_rate(srate);
 
 @slider
 
@@ -274,11 +269,6 @@ while (midirecv(offset, msg1, note, vel)) (
 
 @sample
 
-last_play_state == 0 && play_state ? (
-  filter.svf_single_set_to_target();
-);
-last_play_state = play_state;
-
 lfile >= 0 ? (
   odd_voices = uni_voices & 1;
   ptr = poly.array_first();
@@ -312,45 +302,34 @@ lfile >= 0 ? (
       i += 1;
     );
 
-    /*
-    filter_shape != 0 ? (
+    // Apply filter
+    flt_shape != 0 ? (
       filterbuf = filter_env + ptr[0] * 7; // envelope buffer
       adsr_process(filterbuf);
       filterbuf_l = filter_arr_l + ptr[0] * 11; // filter buffer left
       filterbuf_r = filter_arr_r + ptr[0] * 11; // filter buffer right
-      multiplier = pow(20000/filter_freq, filterbuf[0] * filter_adsr_amt);
+      multiplier = pow(20000/flt_freq, filterbuf[0] * flt_amt / 100);
 
-      filter_setf(filterbuf_l, filter_freq * multiplier, filter_q);
+      filter_setf(filterbuf_l, flt_freq * multiplier, flt_q);
       filter_copy_coefs(filterbuf_l, filterbuf_r);
 
-      filter_shape == 1 ? (
-        out_l = filter_lp(filterbuf_l, out_l);
-        out_r = filter_lp(filterbuf_r, out_r);
-      ) : filter_shape == 2 ? (
-        out_l = filter_bp(filterbuf_l, out_l);
-        out_r = filter_bp(filterbuf_r, out_r);
+      flt_shape == 1 ? (
+        outl = filter_lp(filterbuf_l, outl);
+        outr = filter_lp(filterbuf_r, outr);
+      ) : flt_shape == 2 ? (
+        outl = filter_bp(filterbuf_l, outl);
+        outr = filter_bp(filterbuf_r, outr);
       ) : (
-        out_l = filter_hp(filterbuf_l, out_l);
-        out_r = filter_hp(filterbuf_r, out_r);
+        outl = filter_hp(filterbuf_l, outl);
+        outr = filter_hp(filterbuf_r, outr);
       );
     );
-    */
 
     spl0 += outl * gain;
     spl1 += outr * gain;
 
     ptr = poly.array_next(ptr);
   );
-
-  //flt_shape > 0 ? (
-  //  filter.svf_tick();
-  //  mult = flt_shape == 2 ? flt_q : 1;
-  //  outl = filter.svf_svf0(outl) * mult;
-  //  outr = filter.svf_svf1(outr) * mult;
-  //);
-
-  //spl0 += outl * gain;
-  //spl1 += outr * gain;
 );
 
 @gfx 520 200
