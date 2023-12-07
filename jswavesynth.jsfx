@@ -163,9 +163,9 @@ function on_slider() (
   osc_sus = normalize_vol_slider(_osc_sus);
   uni_voices = _uni_voices | 0;
   odd_voices = uni_voices & 1;
-  pitch_amt = _pitch_amt * -1 | 0;
+  pitch_amt = _pitch_amt | 0;
   flt_sus = _flt_sus / 100;
-  pitch_sus = normalize_vol_slider(_pitch_sus);
+  pitch_sus = _pitch_sus / 100;
   detune_amt = uni_detune / 100 * 3 / srate; // 3 hz max detune
 );
 
@@ -274,7 +274,7 @@ while(ptr >= 0) ( // for each note/voice
   pitch_amt ? (
     pitchbuf = pitch_env + ptr[0] * 7;
     adsr_process(pitchbuf);
-    osc_pitch_det = pow(2, pitchbuf[0] * pitch_amt / 100 / 12);
+    osc_pitch_det = pow(2, pitchbuf[0] * pitch_amt / 12);
   );
 
   loop(i = 0; uni_voices, // for each unison voice
