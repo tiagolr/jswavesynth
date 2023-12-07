@@ -3,8 +3,7 @@ tags: synth, instrument
 
 slider1:/tilr_JSWavesynth:Sine.wav:Wave
 slider2:vol=80<0, 100, .01>-Volume
-slider3:maxpoly=16<2, 32, 1>-Polyphony
-slider4:uni_voices=1<1, 8, 1>-Unison voices
+slider4:_uni_voices=1<1, 8, 1>-Unison voices
 slider5:uni_detune=15<0, 100, 0.1>-Unison detune
 slider6:_uni_pan=50<0, 100, 0.1>-Unison panning
 
@@ -40,7 +39,6 @@ options:gfx_hz=60 no_meter
 
 @init
 lfile = -1;
-lmaxpoly = -1;
 wavebuf = 100000;
 wavechn = 0;
 wavelen = 0;
@@ -163,12 +161,10 @@ function on_slider() (
   lfile != slider1 ? on_file_change();
   uni_pan = _uni_pan / 100;
   osc_sus = normalize_vol_slider(_osc_sus);
+  uni_voices = _uni_voices | 0;
+  odd_voices = uni_voices & 1;
   flt_sus = _flt_sus / 100;
   pitch_sus = normalize_vol_slider(_pitch_sus);
-  lmaxpoly != maxpoly ? (
-    lmaxpoly = maxpoly;
-    poly.array_clear();
-  );
   detune_amt = uni_detune / 100 * 3 / srate; // 3 hz max detune
 );
 
@@ -210,8 +206,8 @@ while (midirecv(offset, msg1, note, vel)) (
       poly.array_remove(ptr);
     );
 
-    // if polyphony is full and not mono remove first element
-    poly.size == maxpoly && maxpoly != 0 ? (
+    // if polyphony is full
+    poly.size == 127 ? (
       poly.array_remove(poly.array_first());
     );
 
@@ -267,7 +263,6 @@ while (midirecv(offset, msg1, note, vel)) (
 
 @sample
 
-odd_voices = uni_voices & 1;
 ptr = poly.array_first();
 while(ptr >= 0) ( // for each note/voice
   outl = 0;
@@ -281,7 +276,7 @@ while(ptr >= 0) ( // for each note/voice
     osc_pitch_det = pow(2, pitchbuf[0] * pitch_amt / 100 / 12);
   );
 
-  loop(i = 0; uni_voices | 0, // for each unison voice
+  loop(i = 0; uni_voices, // for each unison voice
     imod2 = i & 1;
     pos = i == 0 && odd_voices ? 0 : imod2 ? -1 : 1; // center, left or right position
     detune = !odd_voices
