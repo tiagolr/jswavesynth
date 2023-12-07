@@ -11,12 +11,23 @@ slider6:_uni_pan=50<0, 100, 0.1>-Unison panning
 slider7:osc_vel=100<0,100,0.1>-Velocity
 slider8:osc_att=1<1, 10000, 1:log>-Attack
 slider9:osc_dec=1<1, 10000, 1:log>-Decay
-slider10:_osc_sus=0<0, 100, .1>-Sustain Db
+slider10:_osc_sus=100<0, 100, .1>-Sustain Db
 slider11:osc_rel=500<1, 10000, 1:log>-Release
 
 slider13:flt_shape=0<0,3,1{Off,Low Pass,Band Pass,High Pass}>-Filter shape
 slider14:flt_freq=22000<20, 22000, 1:log>-Filter frequency
 slider15:flt_q=0.70<0.01, 40, 0.01:log>-Filter Q
+slider16:flt_amt=0<-100, 100, 0.01>-Filter ASDR amt.
+slider17:flt_att=1<1, 5000, 1:log>-Filter Attack
+slider18:flt_dec=500<1, 5000, 1:log>-Filter Decay
+slider19:_flt_sus=0<0, 100, 0.1>-Filter Sustain
+slider20:flt_rel=500<1, 5000, 1:log>-Filter Release
+
+slider22:pitch_amt=0<-24, 24, 1>-Pitch ASDR amt.
+slider23:pitch_att=1<1, 5000, 1:log>-Pitch Attack
+slider24:pitch_dec=500<1, 5000, 1:log>-Pitch Decay
+slider25:_pitch_sus=0<0, 100, 0.1>-Pitch Sustain
+slider26:pitch_rel=500<1, 5000, 1:log>-Pitch Release
 
 import ws.wavetable.jsfx-inc
 import ws.array.jsfx-inc
@@ -39,6 +50,10 @@ env_panel = 0;
 
 poly.array_init(0, 128, 4+8); // [0note, 1velocity, 2freq, 3phase, 4..12 phase_unison]
 envelope = 2000; // 128 * 7 buffer
+pitch_env = 3000; // 128 * 7 buffer
+filter_arr_l = 4000; // 128 * 11 buffer for filters one per key left channel
+filter_arr_r = 6000; // 128 * 11 buffer for filters one per key right channel
+filter_env = 8000; // 128 * 7 buffer for filter adsr
 last_phase = 10000; // 9 buffer for copy pasting note osc phases
 
 function db2gain (db) local (val) (
@@ -90,12 +105,68 @@ function on_file_change () (
     osc.wave_setf(50);
   );
 );
+/*
+// copy filter coeficients from buffer1 to buffer2
+function filter_copy_coefs(buf1, buf2) (
+  buf2[2] = buf1[2];
+  buf2[3] = buf1[3];
+  buf2[4] = buf1[4];
+);
 
+// wraps filter function using buffers
+function filter_setf(buf, freq, q) (
+  filter.zdf_setf(freq, q);
+  buf[2] = filter.g;
+  buf[3] = filter.r2;
+  buf[4] = filter.h;
+);
+
+// wraps filter function using buffers
+function filter_lp(buf, sample) local(lp) (
+  filter.s1 = buf[0];
+  filter.s2 = buf[1];
+  filter.g = buf[2];
+  filter.r2 = buf[3];
+  filter.h = buf[4];
+  lp = filter.zdf_svf_lp(sample);
+  buf[0] = filter.s1;
+  buf[1] = filter.s2;
+  lp;
+);
+
+// wraps filter function using buffers
+function filter_bp(buf, sample) local(bp) (
+  filter.s1 = buf[0];
+  filter.s2 = buf[1];
+  filter.g = buf[2];
+  filter.r2 = buf[3];
+  filter.h = buf[4];
+  bp = filter.zdf_svf_bp(sample);
+  buf[0] = filter.s1;
+  buf[1] = filter.s2;
+  bp;
+);
+
+// wraps filter function using buffers
+function filter_hp(buf, sample) local(hp) (
+  filter.s1 = buf[0];
+  filter.s2 = buf[1];
+  filter.g = buf[2];
+  filter.r2 = buf[3];
+  filter.h = buf[4];
+  hp = filter.zdf_svf_hp(sample);
+  buf[0] = filter.s1;
+  buf[1] = filter.s2;
+  hp;
+);
+*/
 function on_slider() (
   gain = db2gain(normalize_vol_slider(vol));
   lfile != slider1 ? on_file_change();
   uni_pan = _uni_pan / 100;
   osc_sus = normalize_vol_slider(_osc_sus);
+  flt_sus = normalize_vol_slider(_flt_sus);
+  pitch_sus = normalize_vol_slider(_pitch_sus);
   lmaxpoly != maxpoly ? (
     lmaxpoly = maxpoly;
     poly.array_clear();
@@ -167,12 +238,30 @@ while (midirecv(offset, msg1, note, vel)) (
     adsr_sets(exp(log(10)/20 * osc_sus), env);
     adsr_setr(osc_rel * 0.001, env);
     adsr_a(min(vel / 127 + (1 - osc_vel / 100), 1), env);
+
+    env = pitch_env + note * 7;
+    adsr_seta(pitch_att * 0.001, env);
+    adsr_setd(pitch_dec * 0.001, env);
+    adsr_sets(pitch_sus, env);
+    adsr_setr(pitch_rel * 0.001, env);
+    adsr_a(1, env);
+
+    env = filter_env + note * 7;
+    adsr_seta(flt_att * 0.001, env);
+    adsr_setd(flt_dec * 0.001, env);
+    adsr_sets(flt_sus, env);
+    adsr_setr(flt_rel * 0.001, env);
+    adsr_a(1, env);
   );
 
   // Note off
   event == 0x80 || (event == 0x90 && !vel) ? (
     ptr = poly.array_find(note);
-    ptr >= 0 ? adsr_r(envelope + note * 7);
+    ptr >= 0 ? (
+      adsr_r(envelope + note * 7);
+      adsr_r(pitch_env + note * 7);
+      adsr_r(filter_env + note * 7);
+    );
   );
 
   // All notes off
@@ -191,20 +280,27 @@ last_play_state == 0 && play_state ? (
 last_play_state = play_state;
 
 lfile >= 0 ? (
-  outl = 0;
-  outr = 0;
   odd_voices = uni_voices & 1;
   ptr = poly.array_first();
   while(ptr >= 0) ( // for each note/voice
+    outl = 0;
+    outr = 0;
     envbuf = envelope + ptr[0] * 7;
     env_state = adsr_process(envbuf);
+    osc_pitch_det = 1;
+    pitch_amt ? (
+      pitchbuf = pitch_env + ptr[0] * 7;
+      adsr_process(pitchbuf);
+      osc_pitch_det = pow(2, pitchbuf[0] * pitch_amt / 100 / 12);
+    );
+
     loop(i = 0; uni_voices | 0, // for each unison voice
       imod2 = i & 1;
       pos = i == 0 && odd_voices ? 0 : imod2 ? -1 : 1; // center, left or right position
       detune = !odd_voices
         ? pos * detune_amt * (i + 1 - imod2) / uni_voices
         : pos * detune_amt * (i + imod2) / uni_voices;
-      osc.wave_setdt(ptr[2] + detune);
+      osc.wave_setdt(ptr[2] * osc_pitch_det + detune);
       osc.wave_sync(ptr[i + 3]);
       wave = osc.wave_spline3();
       pan = !odd_voices
@@ -216,18 +312,45 @@ lfile >= 0 ? (
       i += 1;
     );
 
+    /*
+    filter_shape != 0 ? (
+      filterbuf = filter_env + ptr[0] * 7; // envelope buffer
+      adsr_process(filterbuf);
+      filterbuf_l = filter_arr_l + ptr[0] * 11; // filter buffer left
+      filterbuf_r = filter_arr_r + ptr[0] * 11; // filter buffer right
+      multiplier = pow(20000/filter_freq, filterbuf[0] * filter_adsr_amt);
+
+      filter_setf(filterbuf_l, filter_freq * multiplier, filter_q);
+      filter_copy_coefs(filterbuf_l, filterbuf_r);
+
+      filter_shape == 1 ? (
+        out_l = filter_lp(filterbuf_l, out_l);
+        out_r = filter_lp(filterbuf_r, out_r);
+      ) : filter_shape == 2 ? (
+        out_l = filter_bp(filterbuf_l, out_l);
+        out_r = filter_bp(filterbuf_r, out_r);
+      ) : (
+        out_l = filter_hp(filterbuf_l, out_l);
+        out_r = filter_hp(filterbuf_r, out_r);
+      );
+    );
+    */
+
+    spl0 += outl * gain;
+    spl1 += outr * gain;
+
     ptr = poly.array_next(ptr);
   );
 
-  flt_shape > 0 ? (
-    filter.svf_tick();
-    mult = flt_shape == 2 ? flt_q : 1;
-    outl = filter.svf_svf0(outl) * mult;
-    outr = filter.svf_svf1(outr) * mult;
-  );
+  //flt_shape > 0 ? (
+  //  filter.svf_tick();
+  //  mult = flt_shape == 2 ? flt_q : 1;
+  //  outl = filter.svf_svf0(outl) * mult;
+  //  outr = filter.svf_svf1(outr) * mult;
+  //);
 
-  spl0 += outl * gain;
-  spl1 += outr * gain;
+  //spl0 += outl * gain;
+  //spl1 += outr * gain;
 );
 
 @gfx 520 200
@@ -267,11 +390,19 @@ env_panel == 0 ? (
 );
 
 env_panel == 1 ? (
-  1; // TODO
+  draw_knob(160, 130, 22, "Amt", 0, -24, 24, 0, 1, sprintf(#, "%i", slider(22)));
+  draw_knob(220, 130, 23, "Att", 1, 1, 10000, 1, 0, sprintf(#, "%i ms", slider(23)));
+  draw_knob(280, 130, 24, "Dec", 1, 1, 10000, 1, 0, sprintf(#, "%i ms", slider(24)));
+  draw_knob(340, 130, 25, "Sus", 100, 0, 100, 0, 0, sprintf(#, "%i", slider(25)));
+  draw_knob(400, 130, 26, "Rel", 1, 1, 10000, 1, 0, sprintf(#, "%i ms", slider(26)));
 );
 
 env_panel == 2 ? (
-  1; // TODO
+  draw_knob(160, 130, 16, "Amt", 0, -100, 100, 0, 1, sprintf(#, "%i%%", slider(16)));
+  draw_knob(220, 130, 17, "Att", 1, 1, 10000, 1, 0, sprintf(#, "%i ms", slider(17)));
+  draw_knob(280, 130, 18, "Dec", 1, 1, 10000, 1, 0, sprintf(#, "%i ms", slider(18)));
+  draw_knob(340, 130, 19, "Sus", 100, 0, 100, 0, 0, sprintf(#, "%i", slider(19)));
+  draw_knob(400, 130, 20, "Rel", 1, 1, 10000, 1, 0, sprintf(#, "%i ms", slider(20)));
 );
 
 set_color(0x666666);
