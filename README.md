@@ -1,8 +1,8 @@
-# JSDrumpad
+# JSWavesynth
 
 JSFX polyphonic synth with a unison engine.
 
-![JSDrumpad.png](doc/ss.png)
+![JSWavesynth.png](doc/ss.png)
 
 Features:
 * Single cycle waveforms read from wav files
