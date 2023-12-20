@@ -31,7 +31,7 @@ slider26:pitch_rel=500<1, 5000, 1:log>-Pitch Release
 import ws.wavetable.jsfx-inc
 import ws.array.jsfx-inc
 import ws.adsr.jsfx-inc
-import ws.zdf_filter.jsfx-inc
+import ws.rbj_filter.jsfx-inc
 import ws.gfxlib.jsfx-inc
 import ws.mouselib.jsfx-inc
 
@@ -111,60 +111,6 @@ function on_file_change() (
 function read_file_string(str) (
   filehandle=file_open(str);
   read_file(filehandle);
-);
-
-// copy filter coeficients from buffer1 to buffer2
-function filter_copy_coefs(buf1, buf2) (
-  buf2[2] = buf1[2];
-  buf2[3] = buf1[3];
-  buf2[4] = buf1[4];
-);
-
-// wraps filter function using buffers
-function filter_setf(buf, freq, q) (
-  filter.zdf_setf(freq, q);
-  buf[2] = filter.g;
-  buf[3] = filter.r2;
-  buf[4] = filter.h;
-);
-
-// wraps filter function using buffers
-function filter_lp(buf, sample) local(lp) (
-  filter.s1 = buf[0];
-  filter.s2 = buf[1];
-  filter.g = buf[2];
-  filter.r2 = buf[3];
-  filter.h = buf[4];
-  lp = filter.zdf_svf_lp(sample);
-  buf[0] = filter.s1;
-  buf[1] = filter.s2;
-  lp;
-);
-
-// wraps filter function using buffers
-function filter_bp(buf, sample) local(bp) (
-  filter.s1 = buf[0];
-  filter.s2 = buf[1];
-  filter.g = buf[2];
-  filter.r2 = buf[3];
-  filter.h = buf[4];
-  bp = filter.zdf_svf_bp(sample);
-  buf[0] = filter.s1;
-  buf[1] = filter.s2;
-  bp;
-);
-
-// wraps filter function using buffers
-function filter_hp(buf, sample) local(hp) (
-  filter.s1 = buf[0];
-  filter.s2 = buf[1];
-  filter.g = buf[2];
-  filter.r2 = buf[3];
-  filter.h = buf[4];
-  hp = filter.zdf_svf_hp(sample);
-  buf[0] = filter.s1;
-  buf[1] = filter.s2;
-  hp;
 );
 
 function on_slider() (
@@ -278,6 +224,14 @@ while (midirecv(offset, msg1, note, vel)) (
 
 @sample
 
+function copy_filter_coefs (f1, f2) (
+  f2[0] = f1[0]; // a1
+  f2[1] = f1[1]; // a2
+  f2[2] = f1[2]; // b0
+  f2[3] = f1[3]; // b1
+  f2[4] = f1[4]; // b2
+);
+
 ptr = poly.array_first();
 while(ptr >= 0) ( // for each note/voice
   outl = 0;
@@ -313,23 +267,21 @@ while(ptr >= 0) ( // for each note/voice
   flt_shape != 0 ? (
     filterbuf = filter_env + ptr[0] * 7; // envelope buffer
     adsr_process(filterbuf);
-    filterbuf_l = filter_arr_l + ptr[0] * 11; // filter buffer left
-    filterbuf_r = filter_arr_r + ptr[0] * 11; // filter buffer right
     multiplier = pow(20000/flt_freq, filterbuf[0] * flt_amt / 100);
 
-    filter_setf(filterbuf_l, flt_freq * multiplier, flt_q);
-    filter_copy_coefs(filterbuf_l, filterbuf_r);
+    filterbuf_l = filter_arr_l + ptr[0] * 11; // filter buffer left
+    filterbuf_r = filter_arr_r + ptr[0] * 11; // filter buffer left
 
-  flt_shape == 1 ? (
-      outl = filter_lp(filterbuf_l, outl);
-      outr = filter_lp(filterbuf_r, outr);
+    flt_shape == 1 ? (
+      rbj_lp(filterbuf_l, flt_freq * multiplier, flt_q);
     ) : flt_shape == 2 ? (
-      outl = filter_bp(filterbuf_l, outl);
-      outr = filter_bp(filterbuf_r, outr);
+      rbj_bp(filterbuf_l, flt_freq * multiplier, flt_q);
     ) : (
-      outl = filter_hp(filterbuf_l, outl);
-      outr = filter_hp(filterbuf_r, outr);
+      rbj_hp(filterbuf_l, flt_freq * multiplier, flt_q);
     );
+    copy_filter_coefs(filterbuf_l, filterbuf_r);
+    outl = rbj_df1(filterbuf_l, outl);
+    outr = rbj_df1(filterbuf_r, outr);
   );
 
   spl0 += outl * gain;
