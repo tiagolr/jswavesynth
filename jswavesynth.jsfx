@@ -10,7 +10,7 @@ slider6:_uni_pan=50<0, 100, 0.1>-Unison panning
 slider7:osc_vel=100<0,100,0.1>-Velocity
 slider8:osc_att=1<1, 10000, 1:log>-Attack
 slider9:osc_dec=1<1, 10000, 1:log>-Decay
-slider10:_osc_sus=100<0, 100, .1>-Sustain Db
+slider10:_osc_sus=100<0, 100, .1>-Sustain
 slider11:osc_rel=500<1, 10000, 1:log>-Release
 
 slider13:flt_shape=0<0,3,1{Off,Low Pass,Band Pass,High Pass}>-Filter shape
@@ -149,7 +149,10 @@ function on_slider() (
 
 // FIX - read initial wave from string instead of slider
 read_file_string("tilr_JSWavesynth/Sine 1.wav");
+
+// init smooth
 gain.rc_set(0.0033);
+gain.smooth = db2gain(normalize_vol_slider(vol));
 
 @slider
 
